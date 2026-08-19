@@ -13,8 +13,7 @@ def generate_noise_map(
     if width <= 0 or height <= 0:
         raise ValueError("Width and height must be greater than zero.")
 
-    if seed is not None:
-        random.seed(seed)
+    rng = random.Random(seed)
 
     noise_map = []
 
@@ -22,7 +21,7 @@ def generate_noise_map(
         row = []
 
         for _ in range(width):
-            value = random.random()
+            value = rng.random()
             row.append(value)
 
         noise_map.append(row)
@@ -148,5 +147,70 @@ def generate_value_noise(
             row.append(value)
 
         noise_map.append(row)
+
+    return noise_map
+
+
+# layered value noise
+def generate_octave_noise(
+    width: int,
+    height: int,
+    scale: float = 8.0,
+    octaves: int = 4,
+    persistence: float = 0.5,
+    lacunarity: float = 2.0,
+    seed: int | None = None,
+) -> list[list[float]]:
+    """Generate layered noise using multiple octaves."""
+
+    if width <= 0 or height <= 0:
+        raise ValueError("Width and height must be greater than zero.")
+
+    if scale <= 0:
+        raise ValueError("Scale must be greater than zero.")
+
+    if octaves <= 0:
+        raise ValueError("Octaves must be greater than zero.")
+
+    if not 0.0 < persistence <= 1.0:
+        raise ValueError("Persistence must be between 0.0 and 1.0.")
+
+    if lacunarity <= 0:
+        raise ValueError("Lacunarity must be greater than zero.")
+
+    noise_map = [
+        [0.0 for _ in range(width)]
+        for _ in range(height)
+    ]
+
+    amplitude = 1.0
+    total_amplitude = 0.0
+    frequency_scale = scale
+
+    for octave in range(octaves):
+        octave_seed = None
+
+        if seed is not None:
+            octave_seed = seed + octave
+
+        octave_map = generate_value_noise(
+            width=width,
+            height=height,
+            scale=frequency_scale,
+            seed=octave_seed,
+        )
+
+        for y in range(height):
+            for x in range(width):
+                noise_map[y][x] += octave_map[y][x] * amplitude
+
+        total_amplitude += amplitude
+
+        amplitude *= persistence
+        frequency_scale /= lacunarity
+
+    for y in range(height):
+        for x in range(width):
+            noise_map[y][x] /= total_amplitude
 
     return noise_map
